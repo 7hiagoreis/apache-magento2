@@ -6,7 +6,7 @@ import std;
 # Para descarregamento SSL, passe o seguinte cabeçalho no seu proxy ou balanceador: 'X-Forwarded-Proto: https'
 
 backend default {
-    .host = "192.99.15.168";
+    .host = "<seu_endereço_IP>";
     .port = "8080";
     .first_byte_timeout = 600s;
     .probe = {
@@ -57,7 +57,7 @@ sub vcl_recv {
           return (pipe);
     }
 
-    # Lidamos somente com GET e HEAD por padrão
+    # Lidando somente com GET e HEAD por padrão
     if (req.method != "GET" && req.method != "HEAD") {
         return (pass);
     }
@@ -127,7 +127,7 @@ sub process_graphql_headers {
         hash_data(req.http.X-Magento-Cache-Id);
 
         # Quando o frontend parar de enviar o token de autenticação,
-        # garanta que usuários parem de receber resultados cacheados para usuários logados
+        # garanta que usuários parem de receber resultados de cache para usuários conectados
         if (req.http.Authorization ~ "^Bearer") {
             hash_data("Authorized");
         }
@@ -158,7 +158,7 @@ sub vcl_backend_response {
         set beresp.http.X-Magento-Cache-Control = beresp.http.Cache-Control;
     }
 
-    # Cachear apenas respostas de sucesso e 404 que não estão marcadas como privadas
+    # Fazer cache apenas das respostas de sucesso e 404 que não estão marcadas como privadas
     if ((beresp.status != 200 && beresp.status != 404) || beresp.http.Cache-Control ~ "private") {
         set beresp.uncacheable = true;
         set beresp.ttl = 86400s;
@@ -181,7 +181,7 @@ sub vcl_backend_response {
         unset beresp.http.set-cookie;
     }
 
-    # Se a página não for cacheável, ignora o varnish por 2 minutos (Hit-For-Pass)
+    # Se a página não for possivel fazer o cache da página, ignorar o varnish por 2 minutos (Hit-For-Pass)
     if (beresp.ttl <= 0s ||
         beresp.http.Surrogate-control ~ "no-store" ||
         (!beresp.http.Surrogate-Control &&
@@ -192,7 +192,7 @@ sub vcl_backend_response {
         set beresp.uncacheable = true;
     }
 
-    # Se a chave do cache na resposta Magento não bater com a da requisição, não cacheia na chave da requisição
+    # Se a chave do cache na resposta do Magento não bater com a da requisição, não faz o cache na chave da requisição
     if (bereq.url ~ "/graphql" && bereq.http.X-Magento-Cache-Id && bereq.http.X-Magento-Cache-Id != beresp.http.X-Magento-Cache-Id) {
         set beresp.ttl = 0s;
         set beresp.uncacheable = true;
@@ -211,7 +211,7 @@ sub vcl_deliver {
         set resp.http.X-Magento-Cache-Debug = "MISS";
     }
 
-    # Não permitir que o navegador cacheie arquivos não estáticos.
+    # Não permitir que o navegador faça cache de arquivos não estáticos.
     if (resp.http.Cache-Control !~ "private" && req.url !~ "^/(pub/)?(media|static)/") {
         set resp.http.Pragma = "no-cache";
         set resp.http.Expires = "-1";
